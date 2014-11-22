@@ -81,6 +81,10 @@ rake coverage
 rake docs
 ```
 
+## TODO
+
+* specs: test `redirect_to_https=true` w/ threads
+
 ## License
 
   MIT [1].
