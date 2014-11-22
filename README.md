@@ -67,10 +67,11 @@ gem install open_uri_w_redirect_to_https
   Monkey-patching is not a very robust way to fix bugs.  Use at your
   own risk.
 
-  Q: why should I prefer this gem to
-  [open_uri_redirections](https://github.com/jaimeiniesta/open_uri_redirections)?
+  Q: why should I prefer this gem to [open_uri_redirections]
+  (https://github.com/jaimeiniesta/open_uri_redirections)?
   <br/>
-  A: because this one is thread-safe.
+  A: because this one is thread-safe (I hope); other than that, feel
+  free to choose either
 
 ## Specs & Docs
 
