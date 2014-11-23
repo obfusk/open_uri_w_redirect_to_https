@@ -162,8 +162,8 @@ describe 'open' do
   end                                                           # }}}1
 
   context 'w/ w_redirect_to_https' do                           # {{{1
-    around(:each) do |b|
-      OpenURI.w_redirect_to_https { b[] }
+    around(:each) do |example|
+      OpenURI.w_redirect_to_https { example.run }
     end
 
     it 'redirects HTTP to HTTP' do
