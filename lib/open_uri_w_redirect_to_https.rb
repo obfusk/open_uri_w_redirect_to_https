@@ -2,7 +2,7 @@
 #
 # File        : open_uri_w_redirect_to_https.rb
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2014-11-22
+# Date        : 2014-11-23
 #
 # Copyright   : Copyright (C) 2014  Felix C. Stegerman
 # Licence     : MIT
@@ -22,15 +22,13 @@ module OpenURI
 
     # set the `open_uri` `:redirect_to_https` default; thread safe!
     def redirect_to_https=(val)
-      RedirectHTTPToHTTPS[:mutex].synchronize {
-        RedirectHTTPToHTTPS[:default] = val
-      }
+      (x = RedirectHTTPToHTTPS)[:mutex].synchronize { x[:default] = val }
     end
 
     # `redirectable?` patch that uses `caller` to determine whether
     # HTTP to HTTPS redirection should be allowed (as well)
     def redirectable?(uri1, uri2)
-      if caller.find { |x| x =~ /redirect_to_https/ } =~ /__WITH__/
+      if caller(1,4).find { |x| x =~ /redirect_to_https/ } =~ /__WITH__/
         redirectable_w_redirect_to_https? uri1, uri2
       else
         redirectable_orig? uri1, uri2
@@ -48,9 +46,7 @@ module OpenURI
     # you can set the default using `redirect_to_https=`
     def open_uri(name, *rest, &b)
       r = (o = rest.find { |x| Hash === x }) && o.delete(:redirect_to_https)
-      d = RedirectHTTPToHTTPS[:mutex].synchronize {
-        RedirectHTTPToHTTPS[:default]
-      }
+      d = (x = RedirectHTTPToHTTPS)[:mutex].synchronize { x[:default] }
       if (r.nil? ? d : r)
         open_uri__WITH__redirect_to_https name, *rest, &b
       else
@@ -76,6 +72,7 @@ module OpenURI
     def open_uri__WITHOUT__redirect_to_https(name, *rest, &b)
       open_uri_orig name, *rest, &b
     end
+
   end
 end
 
