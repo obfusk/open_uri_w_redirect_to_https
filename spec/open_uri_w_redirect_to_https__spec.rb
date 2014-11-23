@@ -12,6 +12,7 @@
 require 'open_uri_w_redirect_to_https'
 
 require 'fakeweb'
+require 'thwait'
 
 FakeWeb.allow_net_connect = false
 FakeWeb.register_uri(
@@ -33,7 +34,35 @@ FakeWeb.register_uri(
 FakeWeb.register_uri(:get, 'http://example.com', body: 'HTTP')
 FakeWeb.register_uri(:get, 'https://example.com', body: 'HTTPS')
 
+class << OpenURI
+  alias_method :open_uri_orig__, :open_uri_orig
+end
+
 describe 'open' do
+
+  context 'does not break anything' do                          # {{{1
+    it 'and passes arguments on' do
+      expect(OpenURI).to receive(:open_uri_orig) \
+        .with(kind_of(URI), { 'User-Agent' => 'foo' })
+      open('http://http-to-https.example.com',
+        redirect_to_https: true, 'User-Agent' => 'foo')
+    end
+    it 'does not affect redirectable? called directly' do
+      expect(
+        open('http://http-to-http.example.com') do |x|
+          OpenURI.redirectable?(URI.parse('http://foo'),
+                                URI.parse('https://foo'))
+        end
+      ).to be_falsey
+      expect(
+        open('http://http-to-https.example.com',
+              redirect_to_https: true) do |x|
+          OpenURI.redirectable?(URI.parse('http://foo'),
+                                URI.parse('https://foo'))
+        end
+      ).to be_falsey
+    end
+  end                                                           # }}}1
 
   context 'w/ defaults' do                                      # {{{1
     it 'redirects HTTP to HTTP' do
@@ -79,6 +108,16 @@ describe 'open' do
         open('https://https-to-http.example.com', redirect_to_https: true)
       } .to raise_error(RuntimeError, /redirection forbidden/)
     end
+    it 'redirects HTTP to HTTPS w/ block' do
+      expect { |b|
+        open('http://http-to-https.example.com', redirect_to_https: true, &b)
+      } .to yield_control
+    end
+    it 'refuses to redirect HTTPS to HTTP w/ block' do
+      expect { |b|
+        open('https://https-to-http.example.com', redirect_to_https: true, &b)
+      } .to raise_error(RuntimeError, /redirection forbidden/)
+    end
   end                                                           # }}}1
 
   context 'w/ redirect_to_https=true' do                        # {{{1
@@ -112,59 +151,122 @@ describe 'open' do
     end
   end                                                           # }}}1
 
+  context 'w/ w_redirect_to_https' do                           # {{{1
+    around(:each) do |b|
+      OpenURI.w_redirect_to_https { b[] }
+    end
+
+    it 'redirects HTTP to HTTP' do
+      expect(
+        open('http://http-to-http.example.com').read
+      ).to eq('HTTP')
+    end
+    it 'redirects HTTPS to HTTPS' do
+      expect(
+        open('https://https-to-https.example.com').read
+      ).to eq('HTTPS')
+    end
+    it 'redirects HTTP to HTTPS' do
+      expect(
+        open('http://http-to-https.example.com').read
+      ).to eq('HTTPS')
+    end
+    it 'refuses to redirect HTTPS to HTTP' do
+      expect {
+        open('https://https-to-http.example.com')
+      } .to raise_error(RuntimeError, /redirection forbidden/)
+    end
+  end                                                           # }}}1
+
   context 'w/ threads' do                                       # {{{1
     it 'works' do
+      allow(OpenURI).to receive(:open_uri_orig) do |*a,&b|
+        sleep rand; OpenURI.open_uri_orig__ *a, &b
+      end
+      ts = []
       Thread.abort_on_exception = true
-      1000.times {
-        Thread.new {
-          sleep rand
-          expect(
-            open('http://http-to-http.example.com').read
-          ).to eq('HTTP')
+      begin
+        100.times {
+          ts << Thread.new {
+            expect(
+              open('http://http-to-http.example.com').read
+            ).to eq('HTTP')
+          }
+          ts << Thread.new {
+            expect(
+              open('http://http-to-http.example.com',
+                redirect_to_https: true).read
+            ).to eq('HTTP')
+          }
+
+          ts << Thread.new {
+            expect(
+              open('https://https-to-https.example.com').read
+            ).to eq('HTTPS')
+          }
+          ts << Thread.new {
+            expect(
+              open('https://https-to-https.example.com',
+                redirect_to_https: true).read
+            ).to eq('HTTPS')
+          }
+
+          ts << Thread.new {
+            expect {
+              open('http://http-to-https.example.com')
+            } .to raise_error(RuntimeError, /redirection forbidden/)
+          }
+          ts << Thread.new {
+            expect(
+              open('http://http-to-https.example.com',
+                redirect_to_https: true).read
+            ).to eq('HTTPS')
+          }
+          ts << Thread.new {
+            expect(
+              OpenURI.w_redirect_to_https do
+                open('http://http-to-https.example.com').read
+              end
+            ).to eq('HTTPS')
+          }
+
+          ts << Thread.new {
+            expect {
+              open('https://https-to-http.example.com')
+            } .to raise_error(RuntimeError, /redirection forbidden/)
+          }
+          ts << Thread.new {
+            expect {
+              open('https://https-to-http.example.com', redirect_to_https: true)
+            } .to raise_error(RuntimeError, /redirection forbidden/)
+          }
         }
-        Thread.new {
-          sleep rand
-          expect(
-            open('http://http-to-http.example.com', redirect_to_https: true).read
-          ).to eq('HTTP')
-        }
-        Thread.new {
-          sleep rand
-          expect(
-            open('https://https-to-https.example.com').read
-          ).to eq('HTTPS')
-        }
-        Thread.new {
-          sleep rand
-          expect(
-            open('https://https-to-https.example.com', redirect_to_https: true).read
-          ).to eq('HTTPS')
-        }
-        Thread.new {
-          sleep rand
-          expect {
-            open('http://http-to-https.example.com')
-          } .to raise_error(RuntimeError, /redirection forbidden/)
-        }
-        Thread.new {
-          sleep rand
-          expect(
-            open('http://http-to-https.example.com', redirect_to_https: true).read
-          ).to eq('HTTPS')
-        }
-        Thread.new {
-          sleep rand
-          expect {
-            open('https://https-to-http.example.com')
-          } .to raise_error(RuntimeError, /redirection forbidden/)
-        }
-        Thread.new {
-          sleep rand
-          expect {
-            open('https://https-to-http.example.com', redirect_to_https: true)
-          } .to raise_error(RuntimeError, /redirection forbidden/)
-        }
-      }
+      ensure
+        ThreadsWait.all_waits(*ts)
+      end
+    end
+  end                                                           # }}}1
+
+  context 'w/ (unaffected) defaults' do                         # {{{1
+    it 'redirects HTTP to HTTP' do
+      expect(
+        open('http://http-to-http.example.com').read
+      ).to eq('HTTP')
+    end
+    it 'redirects HTTPS to HTTPS' do
+      expect(
+        open('https://https-to-https.example.com').read
+      ).to eq('HTTPS')
+    end
+    it 'refuses to redirect HTTP to HTTPS' do
+      expect {
+        open('http://http-to-https.example.com')
+      } .to raise_error(RuntimeError, /redirection forbidden/)
+    end
+    it 'refuses to redirect HTTPS to HTTP' do
+      expect {
+        open('https://https-to-http.example.com')
+      } .to raise_error(RuntimeError, /redirection forbidden/)
     end
   end                                                           # }}}1
 

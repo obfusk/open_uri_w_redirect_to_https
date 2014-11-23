@@ -20,15 +20,48 @@ module OpenURI
     alias_method :open_uri_orig     , :open_uri
     alias_method :redirectable_orig?, :redirectable?
 
-    # set the `open_uri` `:redirect_to_https` default; thread safe!
+    # set the `open_uri` `:redirect_to_https` global default
     def redirect_to_https=(val)
       (x = RedirectHTTPToHTTPS)[:mutex].synchronize { x[:default] = val }
     end
 
-    # `redirectable?` patch that uses `caller` to determine whether
-    # HTTP to HTTPS redirection should be allowed (as well)
+    # get the `open_uri` `:redirect_to_https` dynamic or global
+    # default
+    def redirect_to_https?
+      (x = RedirectHTTPToHTTPS)[:mutex].synchronize do
+        t = Thread.current[:__open_uri_w_redirect_to_https_default__]
+        t.nil? ? x[:default] : t
+      end
+    end
+
+    # dynamically thread-scoped `open_uri` `:redirect_to_https`
+    # default; for example:
+    #
+    # ```
+    # w_redirect_to_https { open('http://github.com' }
+    # ```
+    def w_redirect_to_https(val = true, &b)
+      old = Thread.current[:__open_uri_w_redirect_to_https_default__]
+      Thread.current[:__open_uri_w_redirect_to_https_default__] = val
+      begin
+        b[]
+      ensure
+        Thread.current[:__open_uri_w_redirect_to_https_default__] = old
+      end
+    end
+
+    # `redirectable?` patch that uses a thread-local variable to
+    # determine whether HTTP to HTTPS redirection should be allowed
+    # (as well)
+    #
+    # unless the dynamic or global `:redirect_to_https` setting is set
+    # to `:always`, only the behaviour of calls through `open_uri`
+    # will be changed (as per argument or dynamic or global setting)
     def redirectable?(uri1, uri2)
-      if caller(1,4).find { |x| x =~ /redirect_to_https/ } =~ /__WITH__/
+      if  redirect_to_https? == :always ||
+          Thread.current[:__open_uri_w_redirect_to_https__]
+        # clear to prevent leaking (e.g. to block)
+        Thread.current[:__open_uri_w_redirect_to_https__] = nil
         redirectable_w_redirect_to_https? uri1, uri2
       else
         redirectable_orig? uri1, uri2
@@ -40,18 +73,16 @@ module OpenURI
     # allowed; for example:
     #
     # ```
-    # open('http://github.com', redirect_to_https: true)  # works!
+    # open('http://github.com', redirect_to_https: true)
     # ```
     #
-    # you can set the default using `redirect_to_https=`
+    # you can set the dynamic or global default using
+    # `redirect_to_https=` or `w_redirect_to_https`
     def open_uri(name, *rest, &b)
       r = (o = rest.find { |x| Hash === x }) && o.delete(:redirect_to_https)
-      d = (x = RedirectHTTPToHTTPS)[:mutex].synchronize { x[:default] }
-      if (r.nil? ? d : r)
-        open_uri__WITH__redirect_to_https name, *rest, &b
-      else
-        open_uri__WITHOUT__redirect_to_https name, *rest, &b
-      end
+      Thread.current[:__open_uri_w_redirect_to_https__] = \
+        r.nil? ? redirect_to_https? : r
+      open_uri_orig name, *rest, &b
     end
 
   private
@@ -61,16 +92,6 @@ module OpenURI
     def redirectable_w_redirect_to_https?(uri1, uri2)
       redirectable_orig?(uri1, uri2) || \
         (uri1.scheme.downcase == 'http' && uri2.scheme.downcase == 'https')
-    end
-
-    # just calls open_uri_orig; redirectable? matches __WITH__
-    def open_uri__WITH__redirect_to_https(name, *rest, &b)
-      open_uri_orig name, *rest, &b
-    end
-
-    # just calls open_uri_orig; redirectable? does't match __WITH__
-    def open_uri__WITHOUT__redirect_to_https(name, *rest, &b)
-      open_uri_orig name, *rest, &b
     end
 
   end

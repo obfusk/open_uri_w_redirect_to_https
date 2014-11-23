@@ -2,10 +2,10 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2014-11-22
+    Date        : 2014-11-23
 
     Copyright   : Copyright (C) 2014  Felix C. Stegerman
-    Version     : v0.1.0
+    Version     : v0.1.1
 
 []: }}}1
 
@@ -42,7 +42,17 @@ $ pry
 ```bash
 $ pry
 > require 'open_uri_w_redirect_to_https'
-> OpenURI.redirect_to_https = true   # set default
+> OpenURI.w_redirect_to_https { open 'http://github.com' }
+  # dynamically scoped in current thread
+=> #<File:/tmp/open-uri...>
+```
+
+  or:
+
+```bash
+$ pry
+> require 'open_uri_w_redirect_to_https'
+> OpenURI.redirect_to_https = true   # set global default
 > open 'http://github.com'
 => #<File:/tmp/open-uri...>
 ```
@@ -73,6 +83,9 @@ gem install open_uri_w_redirect_to_https
   A: because this one is thread-safe (I hope); other than that, feel
   free to choose either
 
+  NB: this gem internally uses thread-local variables like
+  `Thread.current[:__open_uri_w_redirect_to_https__]`.
+
 ## Specs & Docs
 
 ```bash
@@ -83,7 +96,7 @@ rake docs
 
 ## TODO
 
-* specs: test `redirect_to_https=true` w/ threads
+* specs: (can we) test `redirect_to_https=true` w/ threads?
 
 ## License
 
