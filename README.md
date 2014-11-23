@@ -10,6 +10,7 @@
 []: }}}1
 
 [![Gem Version](https://badge.fury.io/rb/open_uri_w_redirect_to_https.png)](https://rubygems.org/gems/open_uri_w_redirect_to_https)
+[![Build Status](https://travis-ci.org/obfusk/open_uri_w_redirect_to_https.png)](https://travis-ci.org/obfusk/open_uri_w_redirect_to_https)
 
 ## Description
 
