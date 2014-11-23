@@ -82,7 +82,12 @@ module OpenURI
       r = (o = rest.find { |x| Hash === x }) && o.delete(:redirect_to_https)
       Thread.current[:__open_uri_w_redirect_to_https__] = \
         r.nil? ? redirect_to_https? : r
-      open_uri_orig name, *rest, &b
+      begin
+        open_uri_orig name, *rest, &b
+      ensure
+        # clear (redirectable? might not be called due to an exception)
+        Thread.current[:__open_uri_w_redirect_to_https__] = nil
+      end
     end
 
   private

@@ -2,7 +2,7 @@
 #
 # File        : open_uri_w_redirect_to_https__spec.rb
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2014-11-22
+# Date        : 2014-11-23
 #
 # Copyright   : Copyright (C) 2014  Felix C. Stegerman
 # Licence     : MIT
@@ -47,7 +47,7 @@ describe 'open' do
       open('http://http-to-https.example.com',
         redirect_to_https: true, 'User-Agent' => 'foo')
     end
-    it 'does not affect redirectable? called directly' do
+    it 'does not affect other calls to redirectable?' do
       expect(
         open('http://http-to-http.example.com') do |x|
           OpenURI.redirectable?(URI.parse('http://foo'),
@@ -60,6 +60,16 @@ describe 'open' do
           OpenURI.redirectable?(URI.parse('http://foo'),
                                 URI.parse('https://foo'))
         end
+      ).to be_falsey
+    end
+    it 'does not affect redirectable? after an exception' do
+      expect {
+        open 'http://example.com', redirect_to_https: true,
+          :proxy_http_basic_authentication => :oops, :proxy => :oops
+      } .to raise_error(ArgumentError, /multiple proxy options/)
+      expect(
+        OpenURI.redirectable?(URI.parse('http://foo'),
+                              URI.parse('https://foo'))
       ).to be_falsey
     end
   end                                                           # }}}1
