@@ -12,7 +12,6 @@
 require 'open_uri_w_redirect_to_https'
 
 require 'fakeweb'
-require 'thwait'
 
 FakeWeb.allow_net_connect = false
 FakeWeb.register_uri(
@@ -252,7 +251,7 @@ describe 'open' do
           }
         }
       ensure
-        ThreadsWait.all_waits(*ts)
+        ts.each(&:join)
       end
     end
   end                                                           # }}}1
