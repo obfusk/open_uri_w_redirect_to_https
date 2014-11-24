@@ -78,11 +78,13 @@ gem install open_uri_w_redirect_to_https
   Monkey-patching is not a very robust way to fix bugs.  Use at your
   own risk.
 
-  Q: why should I prefer this gem to [open_uri_redirections]
+  Q: Why should I prefer this gem to [open_uri_redirections]
   (https://github.com/jaimeiniesta/open_uri_redirections)?
   <br/>
-  A: because this one is thread-safe (I hope); other than that, feel
-  free to choose either
+  A: Now that open_uri_redirections (>= 0.2.0) is thread-safe, feel
+  free to choose either based on your needs.  This gem supports global
+  and dynamic defaults, wherease open_uri_redirections supports HTTPS
+  to HTTP (unsafe) redirects.
 
   NB: this gem internally uses thread-local variables like
   `Thread.current[:__open_uri_w_redirect_to_https__]`.
