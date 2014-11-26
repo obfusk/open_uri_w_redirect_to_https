@@ -2,7 +2,7 @@
 #
 # File        : open_uri_w_redirect_to_https__spec.rb
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2014-11-23
+# Date        : 2014-11-26
 #
 # Copyright   : Copyright (C) 2014  Felix C. Stegerman
 # Licence     : MIT
@@ -29,6 +29,11 @@ FakeWeb.register_uri(
 FakeWeb.register_uri(
   :get, 'https://https-to-https.example.com',
   body: '', status: [301, 'moved'], location: 'https://example.com'
+)
+FakeWeb.register_uri(
+  :get, 'http://http-to-http-to-https.example.com',
+  body: '', status: [301, 'moved'],
+  location: 'http://http-to-https.example.com'
 )
 FakeWeb.register_uri(:get, 'http://example.com', body: 'HTTP')
 FakeWeb.register_uri(:get, 'https://example.com', body: 'HTTPS')
@@ -117,6 +122,12 @@ describe 'open' do
         open('https://https-to-http.example.com', redirect_to_https: true)
       } .to raise_error(RuntimeError, /redirection forbidden/)
     end
+    it 'redirects HTTP to HTTP to HTTPS' do
+      expect(
+        open('http://http-to-http-to-https.example.com',
+          redirect_to_https: true).read
+      ).to eq('HTTPS')
+    end
     it 'redirects HTTP to HTTPS w/ block' do
       expect { |b|
         open('http://http-to-https.example.com', redirect_to_https: true, &b)
@@ -188,7 +199,8 @@ describe 'open' do
   end                                                           # }}}1
 
   context 'w/ threads' do                                       # {{{1
-    it 'works' do
+    # NB: brittle test
+    it 'seems to work (could be false positive)' do
       allow(OpenURI).to receive(:open_uri_orig) do |*a,&b|
         sleep rand; OpenURI.open_uri_orig__ *a, &b
       end

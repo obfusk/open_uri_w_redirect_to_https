@@ -2,7 +2,7 @@
 #
 # File        : open_uri_w_redirect_to_https.rb
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2014-11-23
+# Date        : 2014-11-26
 #
 # Copyright   : Copyright (C) 2014  Felix C. Stegerman
 # Licence     : MIT
@@ -60,8 +60,6 @@ module OpenURI
     def redirectable?(uri1, uri2)
       if  redirect_to_https? == :always ||
           Thread.current[:__open_uri_w_redirect_to_https__]
-        # clear to prevent leaking (e.g. to block)
-        Thread.current[:__open_uri_w_redirect_to_https__] = nil
         redirectable_w_redirect_to_https? uri1, uri2
       else
         redirectable_orig? uri1, uri2
@@ -82,10 +80,12 @@ module OpenURI
       r = (o = rest.find { |x| Hash === x }) && o.delete(:redirect_to_https)
       Thread.current[:__open_uri_w_redirect_to_https__] = \
         r.nil? ? redirect_to_https? : r
+      b2 = -> io {
+        Thread.current[:__open_uri_w_redirect_to_https__] = nil; b[io]
+      }
       begin
-        open_uri_orig name, *rest, &b
+        open_uri_orig name, *rest, &(b ? b2 : nil)
       ensure
-        # clear (redirectable? might not be called due to an exception)
         Thread.current[:__open_uri_w_redirect_to_https__] = nil
       end
     end

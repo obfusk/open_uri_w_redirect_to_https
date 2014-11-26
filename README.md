@@ -2,10 +2,10 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2014-11-23
+    Date        : 2014-11-26
 
     Copyright   : Copyright (C) 2014  Felix C. Stegerman
-    Version     : v0.1.2
+    Version     : v0.1.3
 
 []: }}}1
 
@@ -100,6 +100,7 @@ rake docs
 ## TODO
 
 * specs: (can we) test `redirect_to_https=true` w/ threads?
+* thread-safe spec: (can we) make it no longer brittle?
 
 ## License
 
